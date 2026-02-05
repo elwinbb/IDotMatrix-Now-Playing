@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local config
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Temporary images (script uses temp files)
+lastfm_*.png

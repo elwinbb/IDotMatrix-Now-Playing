@@ -1,0 +1,6 @@
+requests
+pillow
+idotmatrix
+bleak
+numpy
+python-dotenv
