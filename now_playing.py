@@ -2,6 +2,7 @@ import asyncio
 import io
 import os
 import tempfile
+import time
 from pathlib import Path
 from datetime import datetime
 
@@ -20,7 +21,7 @@ if load_dotenv is not None and DOTENV_PATH.exists():
 import requests
 from PIL import Image, ImageEnhance, ImageDraw, ImageFont
 
-from idotmatrix import ConnectionManager
+from idotmatrix import Clock, Common, ConnectionManager
 from idotmatrix import Image as IDotMatrixImage
 from bleak.exc import BleakError
 
@@ -68,6 +69,20 @@ CLOCK_FG = _parse_rgb("CLOCK_FG", (255, 255, 255))
 CLOCK_BG = _parse_rgb("CLOCK_BG", (0, 0, 0))
 CLOCK_PADDING = int(os.environ.get("CLOCK_PADDING", "1"))
 CLOCK_MARGIN = int(os.environ.get("CLOCK_MARGIN", "1"))
+
+# When no music is playing, optionally switch the device into its built-in clock mode.
+USE_DEVICE_CLOCK_WHEN_IDLE = _env_bool("USE_DEVICE_CLOCK_WHEN_IDLE", False)
+DEVICE_CLOCK_STYLE = int(os.environ.get("DEVICE_CLOCK_STYLE", "3"))
+DEVICE_CLOCK_WITH_DATE = _env_bool("DEVICE_CLOCK_WITH_DATE", False)
+DEVICE_CLOCK_24H = _env_bool("DEVICE_CLOCK_24H", False)
+DEVICE_CLOCK_COLOR = _parse_rgb("DEVICE_CLOCK_COLOR", (255, 80, 0))
+SYNC_DEVICE_TIME_ON_START = _env_bool("SYNC_DEVICE_TIME_ON_START", True)
+SYNC_DEVICE_TIME_ON_ENTER_CLOCK = _env_bool("SYNC_DEVICE_TIME_ON_ENTER_CLOCK", True)
+IDLE_TO_CLOCK_AFTER_SECONDS = int(os.environ.get("IDLE_TO_CLOCK_AFTER_SECONDS", "30"))
+
+# Last.fm can intermittently stop marking a track as "now playing".
+# Once we see a now-playing track, keep showing its art for a bit to avoid flicker.
+PLAYING_HOLD_SECONDS = int(os.environ.get("PLAYING_HOLD_SECONDS", "180"))
 # ===========================================
 
 
@@ -406,10 +421,30 @@ async def main_async():
     device_image = IDotMatrixImage()
     await device_image.setMode(1)
 
+    async def sync_device_time() -> None:
+        now_local = datetime.now()
+        await Common().setTime(
+            year=now_local.year,
+            month=now_local.month,
+            day=now_local.day,
+            hour=now_local.hour,
+            minute=now_local.minute,
+            second=now_local.second,
+        )
+
+    if USE_DEVICE_CLOCK_WHEN_IDLE and SYNC_DEVICE_TIME_ON_START:
+        try:
+            await sync_device_time()
+        except Exception as e:
+            print("Warning: could not sync device time:", e)
+
     last_track = None
     last_minute_key = None
     last_image_url = None
     last_art_image = None
+    display_state = "image"  # image | device_clock
+    last_now_playing_seen_at = None
+    playing_hold_until = None
 
     print("Listening for now playing tracks...")
 
@@ -420,11 +455,77 @@ async def main_async():
 
             data = get_now_playing()
             if not data:
+                # If we're still within the "playing hold" window, treat as playing
+                # and do NOT switch to device clock even if Last.fm temporarily returns None.
+                if playing_hold_until is not None and time.monotonic() < playing_hold_until:
+                    if (
+                        display_state == "image"
+                        and SHOW_CLOCK
+                        and last_art_image is not None
+                        and minute_key != last_minute_key
+                    ):
+                        tmp_path = None
+                        try:
+                            tmp_path = download_and_prepare_png(
+                                last_image_url or "",
+                                pixel_size=32,
+                                now=now,
+                                base_img=last_art_image,
+                            )
+                            await device_image.uploadUnprocessed(tmp_path)
+                            print("Updated clock")
+                            last_minute_key = minute_key
+                        finally:
+                            if tmp_path:
+                                try:
+                                    os.remove(tmp_path)
+                                except OSError:
+                                    pass
+
+                    await asyncio.sleep(POLL_INTERVAL)
+                    continue
+
+                should_go_idle = False
+                if USE_DEVICE_CLOCK_WHEN_IDLE:
+                    if last_now_playing_seen_at is None:
+                        # Never saw a now-playing track in this session
+                        should_go_idle = True
+                    else:
+                        should_go_idle = (time.monotonic() - last_now_playing_seen_at) >= IDLE_TO_CLOCK_AFTER_SECONDS
+
+                if should_go_idle and display_state != "device_clock":
+                    try:
+                        if SYNC_DEVICE_TIME_ON_ENTER_CLOCK:
+                            await sync_device_time()
+
+                        r, g, b = DEVICE_CLOCK_COLOR
+                        await Clock().setMode(
+                            style=DEVICE_CLOCK_STYLE,
+                            visibleDate=DEVICE_CLOCK_WITH_DATE,
+                            hour24=DEVICE_CLOCK_24H,
+                            r=r,
+                            g=g,
+                            b=b,
+                        )
+                        display_state = "device_clock"
+                        last_track = None  # force refresh when music resumes
+                        print("Idle: switched to device clock")
+                    except Exception as e:
+                        print("Warning: could not switch to device clock:", e)
+
                 await asyncio.sleep(POLL_INTERVAL)
                 continue
 
             image_url, title, artist = data
             track_id = f"{artist}-{title}"
+
+            last_now_playing_seen_at = time.monotonic()
+            playing_hold_until = last_now_playing_seen_at + PLAYING_HOLD_SECONDS
+
+            if display_state != "image":
+                await device_image.setMode(1)
+                display_state = "image"
+                last_minute_key = None  # force redraw
 
             should_refresh_clock = SHOW_CLOCK and minute_key != last_minute_key
             track_changed = track_id != last_track

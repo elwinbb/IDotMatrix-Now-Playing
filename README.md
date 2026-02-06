@@ -1,11 +1,12 @@
-# IDot Matrix (Last.fm + iDotMatrix scripts)
+# IDot Matrix (Now Playing for Music Services using Last.fm)
 
 This repo is a small “toolbox” for driving an iDotMatrix 16×16 / 32×32 pixel display over Bluetooth LE, with a focus on showing **Last.fm “now playing” album art**.
 
 ## Repository layout
 
-- `lastfm_idotmatrix.py`
+- `now_playing.py`
   - Polls Last.fm for the current track and uploads the album art to the device.
+  - Optional features (via env vars): overlay a small clock on the album art, and/or switch the device to its built-in clock when idle.
 - `requirements.txt`
   - Dependencies for the root scripts.
 
@@ -97,6 +98,29 @@ $env:CLOCK_POSITION = "bottom-right"
 $env:CLOCK_RENDER = "tiny"
 ```
 
+### Built-in device clock when idle (now_playing.py)
+
+If no track is currently marked as “now playing”, `now_playing.py` can switch the iDotMatrix into its built-in clock mode.
+
+- `USE_DEVICE_CLOCK_WHEN_IDLE`
+  - `true` / `false` (default: `false`)
+- `IDLE_TO_CLOCK_AFTER_SECONDS` (default: `30`)
+  - How long to wait after the last seen now-playing track before switching to the built-in clock.
+- `PLAYING_HOLD_SECONDS` (default: `180`)
+  - Holds the last album art briefly to avoid flicker if Last.fm temporarily returns no now-playing track.
+
+Clock appearance / behavior:
+
+- `DEVICE_CLOCK_STYLE` (default: `3`)
+- `DEVICE_CLOCK_WITH_DATE` (default: `false`)
+- `DEVICE_CLOCK_24H` (default: `false`)
+- `DEVICE_CLOCK_COLOR` RGB like `255,80,0` (default: orange)
+
+Time sync (recommended when using built-in clock):
+
+- `SYNC_DEVICE_TIME_ON_START` (default: `true`)
+- `SYNC_DEVICE_TIME_ON_ENTER_CLOCK` (default: `true`)
+
 ## Usage
 
 Activate your venv first:
@@ -108,8 +132,9 @@ Activate your venv first:
 ### Show now-playing album art
 
 ```powershell
-python .\lastfm_idotmatrix.py
+python .\now_playing.py
 ```
+
 
 ## Troubleshooting
 
