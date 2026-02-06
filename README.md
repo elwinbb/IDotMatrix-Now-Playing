@@ -54,6 +54,74 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+## Setup (Raspberry Pi / Raspberry Pi OS)
+
+Tested target: Raspberry Pi 3 Model B (Raspberry Pi OS, Bluetooth via BlueZ).
+
+### 1) System packages
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip bluetooth bluez
+sudo systemctl enable --now bluetooth
+```
+
+### 2) Python venv + deps
+
+From the repo root:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 3) Configure env vars
+
+Same variables as on Windows:
+
+```bash
+export LASTFM_API_KEY="<your key>"
+export LASTFM_USER="<your username>"
+
+# optional
+export IDOTMATRIX_ADDRESS="auto"  # or a fixed MAC like AA:BB:CC:DD:EE:FF
+```
+
+You can also create a local `.env` file in the repo root.
+
+### 4) Run
+
+Use the Pi-friendly entrypoint:
+
+```bash
+python3 raspi_now_playing.py
+```
+
+### BLE permission notes (Linux / BlueZ)
+
+If BLE scanning fails with a permission/DBus error, try one of:
+
+- Run with sudo (quickest):
+
+```bash
+sudo -E python3 raspi_now_playing.py
+```
+
+- Set a fixed MAC instead of scanning:
+
+```bash
+export IDOTMATRIX_ADDRESS="AA:BB:CC:DD:EE:FF"
+python3 raspi_now_playing.py
+```
+
+- Advanced: grant network caps to `python3` so scanning can work without sudo:
+
+```bash
+sudo setcap cap_net_raw,cap_net_admin+eip $(readlink -f $(which python3))
+```
+
 ## Configuration
 
 ### iDotMatrix address
