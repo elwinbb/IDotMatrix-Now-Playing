@@ -3,6 +3,7 @@ import io
 import os
 import tempfile
 from pathlib import Path
+from datetime import datetime
 
 try:
     from dotenv import load_dotenv
@@ -17,7 +18,7 @@ if load_dotenv is not None and DOTENV_PATH.exists():
     DOTENV_LOADED = bool(load_dotenv(dotenv_path=DOTENV_PATH, override=False))
 
 import requests
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageDraw, ImageFont
 
 from idotmatrix import ConnectionManager
 from idotmatrix import Image as IDotMatrixImage
@@ -31,6 +32,42 @@ LASTFM_USER = os.environ.get("LASTFM_USER")
 IDOTMATRIX_ADDRESS = os.environ.get("IDOTMATRIX_ADDRESS", "auto")
 
 POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "5"))  # seconds
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    v = os.environ.get(name)
+    if v is None:
+        return default
+    return v.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _parse_rgb(name: str, default: tuple[int, int, int]) -> tuple[int, int, int]:
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    parts = [p.strip() for p in raw.split(",")]
+    if len(parts) != 3:
+        return default
+    try:
+        r, g, b = (int(parts[0]), int(parts[1]), int(parts[2]))
+    except ValueError:
+        return default
+    r = max(0, min(255, r))
+    g = max(0, min(255, g))
+    b = max(0, min(255, b))
+    return (r, g, b)
+
+
+# Overlay clock on top of album art (off by default to preserve now_playing.py behavior)
+SHOW_CLOCK = _env_bool("SHOW_CLOCK", False)
+CLOCK_FORMAT = os.environ.get("CLOCK_FORMAT", "%I:%M")
+CLOCK_STRIP_LEADING_ZERO = _env_bool("CLOCK_STRIP_LEADING_ZERO", True)
+CLOCK_POSITION = os.environ.get("CLOCK_POSITION", "bottom-right")  # top-left | top-right | bottom-left | bottom-right
+CLOCK_RENDER = os.environ.get("CLOCK_RENDER", "tiny")  # tiny | default
+CLOCK_FG = _parse_rgb("CLOCK_FG", (255, 255, 255))
+CLOCK_BG = _parse_rgb("CLOCK_BG", (0, 0, 0))
+CLOCK_PADDING = int(os.environ.get("CLOCK_PADDING", "1"))
+CLOCK_MARGIN = int(os.environ.get("CLOCK_MARGIN", "1"))
 # ===========================================
 
 
@@ -57,7 +94,100 @@ LASTFM_HEADERS = {
     # Last.fm API can be picky; a UA helps avoid 403s.
     "User-Agent": "lastfm-idotmatrix/1.0",
 }
-from PIL import Image
+
+
+def fetch_album_art(url: str) -> Image.Image:
+    if not url:
+        raise ValueError("No image URL available for this track")
+    r = requests.get(url, headers=LASTFM_HEADERS, timeout=10)
+    r.raise_for_status()
+    return Image.open(io.BytesIO(r.content)).convert("RGB")
+
+
+def overlay_clock(img: Image.Image, now: datetime | None = None) -> Image.Image:
+    if not SHOW_CLOCK:
+        return img
+
+    now = now or datetime.now()
+    text = now.strftime(CLOCK_FORMAT)
+    if CLOCK_STRIP_LEADING_ZERO:
+        # Windows strftime doesn't support %-I, so strip manually.
+        if text.startswith("0") and len(text) > 1:
+            text = text[1:]
+
+    def draw_tiny_clock(draw: ImageDraw.ImageDraw, x0: int, y0: int, s: str) -> tuple[int, int]:
+        glyphs: dict[str, list[str]] = {
+            "0": ["###", "# #", "# #", "# #", "###"],
+            "1": [" ##", "  #", "  #", "  #", " ###"],
+            "2": ["###", "  #", "###", "#  ", "###"],
+            "3": ["###", "  #", "###", "  #", "###"],
+            "4": ["# #", "# #", "###", "  #", "  #"],
+            "5": ["###", "#  ", "###", "  #", "###"],
+            "6": ["###", "#  ", "###", "# #", "###"],
+            "7": ["###", "  #", "  #", "  #", "  #"],
+            "8": ["###", "# #", "###", "# #", "###"],
+            "9": ["###", "# #", "###", "  #", "###"],
+            ":": ["   ", " # ", "   ", " # ", "   "],
+        }
+
+        cursor_x = x0
+        max_h = 5
+        for ch in s:
+            grid = glyphs.get(ch)
+            if not grid:
+                continue
+
+            gw = len(grid[0])
+            for yy, row in enumerate(grid):
+                for xx, c in enumerate(row):
+                    if c == "#":
+                        draw.point((cursor_x + xx, y0 + yy), fill=CLOCK_FG)
+
+            cursor_x += gw + 1
+
+        return cursor_x - x0, max_h
+
+    draw = ImageDraw.Draw(img)
+    pad = max(0, CLOCK_PADDING)
+    margin = max(0, CLOCK_MARGIN)
+
+    if CLOCK_RENDER == "tiny":
+        per_char_width = {"0": 3, "1": 3, "2": 3, "3": 3, "4": 3, "5": 3, "6": 3, "7": 3, "8": 3, "9": 3, ":": 3}
+        text_w = max(1, sum(per_char_width.get(ch, 0) + 1 for ch in text) - 1)
+        text_h = 5
+    else:
+        font = ImageFont.load_default()
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+
+    if CLOCK_POSITION == "top-left":
+        x = margin
+        y = margin
+    elif CLOCK_POSITION == "bottom-left":
+        x = margin
+        y = img.height - text_h - (pad * 2) - margin
+    elif CLOCK_POSITION == "bottom-right":
+        x = img.width - text_w - (pad * 2) - margin
+        y = img.height - text_h - (pad * 2) - margin
+    else:  # top-right
+        x = img.width - text_w - (pad * 2) - margin
+        y = margin
+
+    x = max(0, x)
+    y = max(0, y)
+
+    draw.rectangle(
+        [x, y, x + text_w + (pad * 2) - 1, y + text_h + (pad * 2) - 1],
+        fill=CLOCK_BG,
+    )
+
+    if CLOCK_RENDER == "tiny":
+        draw_tiny_clock(draw, x + pad, y + pad, text)
+    else:
+        draw.text((x + pad, y + pad), text, font=font, fill=CLOCK_FG)
+
+    return img
 
 def dither_after_enhance(img: Image.Image, colors: int = 128) -> Image.Image:
     """
@@ -211,14 +341,16 @@ def directional_dither_horizontal(img, levels=96):
     return Image.fromarray(arr, "RGB")
 
 
-def download_and_prepare_png(url: str, pixel_size: int = 32) -> str:
-    if not url:
-        raise ValueError("No image URL available for this track")
+def download_and_prepare_png(
+    url: str,
+    pixel_size: int = 32,
+    now: datetime | None = None,
+    base_img: Image.Image | None = None,
+) -> str:
+    if base_img is None:
+        base_img = fetch_album_art(url)
 
-    r = requests.get(url, headers=LASTFM_HEADERS, timeout=10)
-    r.raise_for_status()
-
-    img = Image.open(io.BytesIO(r.content)).convert("RGB")
+    img = base_img.copy()
 
     # Resize
     img = img.resize((32, 32), Image.Resampling.BILINEAR)
@@ -236,31 +368,9 @@ def download_and_prepare_png(url: str, pixel_size: int = 32) -> str:
 
     img = directional_dither_horizontal(img, levels=96)
 
+    if SHOW_CLOCK:
+        img = overlay_clock(img, now=now)
 
-    # img = img.resize((pixel_size, pixel_size), Image.Resampling.BILINEAR)
-
-    # sharpen the image a bit
-    # sharpener = ImageEnhance.Sharpness(img)
-    # img = sharpener.enhance(1.3)
-
-    # contraster = ImageEnhance.Contrast(img)
-    # img = contraster.enhance(1.5)
-
-    # img = dither_after_enhance(img, colors=128)
-
-    # THEN ordered dither
-    # img = ordered_dither(img, levels=8)
-
-    # brightener = ImageEnhance.Brightness(img)
-    # img = brightener.enhance(1.2)
-
-    # set dark colors to black
-    # def threshold(c):
-    #     return 0 if c < 10 else c
-    
-    # img = img.point(threshold)
-
-    # img = rgb_to_rgb565_pil(img)
 
 
     # The idotmatrix library's upload functions work with file paths.
@@ -297,11 +407,17 @@ async def main_async():
     await device_image.setMode(1)
 
     last_track = None
+    last_minute_key = None
+    last_image_url = None
+    last_art_image = None
 
     print("Listening for now playing tracks...")
 
     while True:
         try:
+            now = datetime.now()
+            minute_key = now.strftime("%Y%m%d%H%M")
+
             data = get_now_playing()
             if not data:
                 await asyncio.sleep(POLL_INTERVAL)
@@ -310,18 +426,34 @@ async def main_async():
             image_url, title, artist = data
             track_id = f"{artist}-{title}"
 
-            if track_id != last_track:
+            should_refresh_clock = SHOW_CLOCK and minute_key != last_minute_key
+            track_changed = track_id != last_track
+
+            if track_changed or should_refresh_clock:
                 if not image_url:
                     print(f"No album art for: {artist} - {title}")
                     last_track = track_id
+                    last_image_url = image_url
+                    last_art_image = None
+                    last_minute_key = minute_key
                     continue
+
+                if track_changed or image_url != last_image_url or last_art_image is None:
+                    last_art_image = fetch_album_art(image_url)
+                    last_image_url = image_url
 
                 tmp_path = None
                 try:
-                    tmp_path = download_and_prepare_png(image_url, pixel_size=32)
+                    tmp_path = download_and_prepare_png(
+                        image_url,
+                        pixel_size=32,
+                        now=now,
+                        base_img=last_art_image,
+                    )
                     await device_image.uploadUnprocessed(tmp_path)
                     print(f"Updated: {artist} - {title}")
                     last_track = track_id
+                    last_minute_key = minute_key
                 finally:
                     if tmp_path:
                         try:

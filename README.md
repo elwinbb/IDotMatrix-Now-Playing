@@ -68,6 +68,35 @@ $env:LASTFM_USER = "<your username>"
 
 Alternatively, create a local `.env` file (this repo ignores it via `.gitignore`) based on `.env.example`.
 
+### Clock overlay (now_playing.py)
+
+`now_playing.py` can optionally draw a small clock on top of the album art before uploading.
+
+- `SHOW_CLOCK`
+  - `true` / `false` (default: `false`)
+
+Optional tuning (only used when `SHOW_CLOCK=true`):
+
+- `CLOCK_FORMAT` (default: `%I:%M`)
+- `CLOCK_STRIP_LEADING_ZERO` (default: `true`)
+- `CLOCK_POSITION` one of `top-left`, `top-right`, `bottom-left`, `bottom-right` (default: `bottom-right`)
+- `CLOCK_RENDER` one of `tiny`, `default` (default: `tiny`)
+- `CLOCK_FG` RGB like `255,255,255` (default: white)
+- `CLOCK_BG` RGB like `0,0,0` (default: black)
+- `CLOCK_PADDING` (default: `1`)
+- `CLOCK_MARGIN` (default: `1`)
+
+Example (PowerShell):
+
+```powershell
+$env:SHOW_CLOCK = "true"
+
+# optional
+$env:CLOCK_FORMAT = "%I:%M"   # or "%H:%M" for 24-hour
+$env:CLOCK_POSITION = "bottom-right"
+$env:CLOCK_RENDER = "tiny"
+```
+
 ## Usage
 
 Activate your venv first:
