@@ -1,6 +1,25 @@
 # IDot Matrix (Now Playing for Music Services using Last.fm)
 
-This repo is a small “toolbox” for driving an iDotMatrix 16×16 / 32×32 pixel display over Bluetooth LE, with a focus on showing **Last.fm “now playing” album art**.
+## 🎵 IDotMatrix – Now Playing Display
+
+**IDotMatrix – Now Playing Display** is a Python-based project that transforms an **IDotMatrix Bluetooth LED display** into a real-time **“Now Playing” music visualizer**.
+
+The application continuously fetches the **currently playing track from Last.fm**, which can be linked to **Spotify, Apple Music, or any other music service supported by Last.fm scrobbling**. It retrieves track metadata and album artwork, processes the album art to fit the LED matrix resolution, and wirelessly transmits it to the display via **Bluetooth**.
+
+An optional **clock overlay** can be rendered on top of the album artwork, allowing the display to function both as a **music display and a smart clock**. The display updates automatically whenever the track changes, creating a smooth and dynamic visual experience.
+
+This project is well suited for **desk setups, ambient displays, and IoT experiments**, combining **Python, Bluetooth communication, image processing, and real-time music APIs**.
+
+---
+
+### ✨ Features
+
+- 🎶 Fetches the **currently playing song** from Last.fm  
+- 🔗 Supports **Spotify, Apple Music, and other scrobble-enabled services**  
+- 🖼️ Displays **album artwork** on an IDotMatrix LED matrix  
+- 🕒 Optional **time overlay** on top of the album art  
+- 📡 Wireless **Bluetooth communication**  
+- 🔄 Automatically updates when the song changes  
 
 ## Repository layout
 
