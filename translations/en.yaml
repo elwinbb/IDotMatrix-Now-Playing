@@ -1,0 +1,80 @@
+configuration:
+  lastfm_api_key:
+    name: Last.fm API Key
+    description: >-
+      Your Last.fm API key. Get one at https://www.last.fm/api/account/create.
+  lastfm_user:
+    name: Last.fm Username
+    description: The Last.fm username whose currently playing track will be displayed.
+  idotmatrix_address:
+    name: iDotMatrix Device Address
+    description: >-
+      Bluetooth MAC address of your iDotMatrix device (e.g. AA:BB:CC:DD:EE:FF),
+      or "auto" to scan and connect automatically. Using a fixed address is more
+      reliable and does not require elevated privileges for BLE scanning.
+  poll_interval:
+    name: Poll Interval (seconds)
+    description: How often to check Last.fm for track changes.
+  show_clock:
+    name: Show Clock Overlay
+    description: Overlay the current time on top of the album art.
+  clock_format:
+    name: Clock Format
+    description: >-
+      strftime format string for the clock overlay (e.g. "%I:%M" for 12-hour,
+      "%H:%M" for 24-hour).
+  clock_strip_leading_zero:
+    name: Strip Leading Zero
+    description: Remove a leading zero from the hour (e.g. "9:05" instead of "09:05").
+  clock_position:
+    name: Clock Position
+    description: Corner of the display where the clock overlay is rendered.
+  clock_render:
+    name: Clock Render Style
+    description: >-
+      "tiny" uses a compact pixel-art font that fits well on a 32x32 display;
+      "default" uses the PIL default font.
+  clock_fg:
+    name: Clock Foreground Color
+    description: "Clock text color as R,G,B (e.g. 255,255,255 for white)."
+  clock_bg:
+    name: Clock Background Color
+    description: "Clock background fill color as R,G,B (e.g. 0,0,0 for black)."
+  clock_padding:
+    name: Clock Padding (pixels)
+    description: Inner padding between clock text and its background rectangle.
+  clock_margin:
+    name: Clock Margin (pixels)
+    description: Outer margin between the clock rectangle and the display edge.
+  use_device_clock_when_idle:
+    name: Use Device Clock When Idle
+    description: >-
+      Switch the iDotMatrix to its built-in clock mode when no music is playing.
+  device_clock_style:
+    name: Device Clock Style
+    description: Built-in clock face style index (0–9, device-dependent).
+  device_clock_with_date:
+    name: Show Date on Device Clock
+    description: Include the date when the device clock is active.
+  device_clock_24h:
+    name: Device Clock 24-Hour Format
+    description: Use 24-hour time on the device's built-in clock.
+  device_clock_color:
+    name: Device Clock Color
+    description: "Color for the device's built-in clock as R,G,B (e.g. 255,80,0)."
+  sync_device_time_on_start:
+    name: Sync Device Time on Start
+    description: Send the current system time to the device when the add-on starts.
+  sync_device_time_on_enter_clock:
+    name: Sync Device Time on Clock Mode
+    description: Re-sync device time each time it switches into clock mode.
+  idle_to_clock_after_seconds:
+    name: Idle Timeout (seconds)
+    description: >-
+      Seconds of no music before switching to the device clock.
+      Only applies when "Use Device Clock When Idle" is enabled.
+  playing_hold_seconds:
+    name: Playing Hold Duration (seconds)
+    description: >-
+      Keep displaying the last track's art for this many seconds after Last.fm
+      stops reporting it as now playing, to avoid flickering during brief gaps.

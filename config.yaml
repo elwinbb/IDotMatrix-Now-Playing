@@ -1,0 +1,71 @@
+name: "IDotMatrix Now Playing"
+version: "1.0.0"
+slug: idotmatrix_now_playing
+description: >-
+  Display the currently playing track's album art on an iDotMatrix Bluetooth
+  LED matrix, sourced from Last.fm scrobbling.
+url: "https://github.com/remymenard/IDotMatrix-Now-Playing"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+startup: application
+boot: manual
+init: false
+
+host_network: true
+host_dbus: true
+udev: true
+
+privileged:
+  - NET_ADMIN
+  - SYS_ADMIN
+
+options:
+  lastfm_api_key: ""
+  lastfm_user: ""
+  idotmatrix_address: "auto"
+  poll_interval: 5
+  show_clock: false
+  clock_format: "%I:%M"
+  clock_strip_leading_zero: true
+  clock_position: "bottom-right"
+  clock_render: "tiny"
+  clock_fg: "255,255,255"
+  clock_bg: "0,0,0"
+  clock_padding: 1
+  clock_margin: 1
+  use_device_clock_when_idle: false
+  device_clock_style: 3
+  device_clock_with_date: false
+  device_clock_24h: false
+  device_clock_color: "255,80,0"
+  sync_device_time_on_start: true
+  sync_device_time_on_enter_clock: true
+  idle_to_clock_after_seconds: 30
+  playing_hold_seconds: 180
+
+schema:
+  lastfm_api_key: str
+  lastfm_user: str
+  idotmatrix_address: str
+  poll_interval: int(1,3600)
+  show_clock: bool
+  clock_format: str
+  clock_strip_leading_zero: bool
+  clock_position: list(top-left|top-right|bottom-left|bottom-right)
+  clock_render: list(tiny|default)
+  clock_fg: str
+  clock_bg: str
+  clock_padding: int(0,10)
+  clock_margin: int(0,10)
+  use_device_clock_when_idle: bool
+  device_clock_style: int(0,9)
+  device_clock_with_date: bool
+  device_clock_24h: bool
+  device_clock_color: str
+  sync_device_time_on_start: bool
+  sync_device_time_on_enter_clock: bool
+  idle_to_clock_after_seconds: int(0,3600)
+  playing_hold_seconds: int(0,3600)
