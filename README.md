@@ -2,7 +2,7 @@
 
 A Home Assistant add-on that displays your currently playing track's album art on an [iDotMatrix](https://www.idotmatrix.com/) Bluetooth LED matrix, sourced from [Last.fm](https://www.last.fm/) scrobbling.
 
-> This add-on is based on [remymenard/IDotMatrix-Now-Playing](https://github.com/remymenard/IDotMatrix-Now-Playing). All credit for the core Python logic goes to the original author.
+> This add-on is based on [elwinbb/IDotMatrix-Now-Playing](https://github.com/elwinbb/IDotMatrix-Now-Playing). All credit for the core Python logic goes to the original author.
 
 ---
 
@@ -108,4 +108,4 @@ When no music is playing, the add-on can switch the device to its built-in clock
 
 ## Credits
 
-Core application by [remymenard](https://github.com/remymenard/IDotMatrix-Now-Playing). This repository packages it as a Home Assistant add-on.
+Core application by [elwinbb](https://github.com/elwinbb/IDotMatrix-Now-Playing). This repository packages it as a Home Assistant add-on.
